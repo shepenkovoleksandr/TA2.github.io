@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Візуалізація дерев (Звичайне, AVL, Червоно-Чорне)</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f9f9f9;
+    padding: 20px;
+    text-align: center;
+  }
+  h1 {
+    margin-bottom: 20px;
+  }
+  #controls {
+    margin-bottom: 20px;
+  }
+  #controls select, #controls input, #controls button {
+    padding: 10px;
+    font-size: 16px;
+    margin-right: 10px;
+  }
+  #output {
+    margin: 15px 0;
+    font-weight: bold;
+  }
+  #treeContainer {
+    display: inline-block;
+    position: relative;
+    margin-top: 20px;
+    padding-bottom: 60px; /* для стрілок */
+  }
+  .tree-level {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 60px;
+  }
+  .node {
+    border: 2px solid #444;
+    border-radius: 10px;
+    width: 40px;
+    height: 40px;
+    margin: 0 25px;
+    line-height: 40px;
+    font-weight: bold;
+    user-select: none;
+    position: relative;
+  }
+  /* Звичайне дерево - зелений фон */
+  .node.binary {
+    background-color: #d1e7dd;
+    color: #0f5132;
+  }
+  /* AVL - синій */
+  .node.avl {
+    background-color: #cfe2ff;
+    color: #084298;
+  }
+  /* Червоно-чорне - червоний/чорний */
+  .node.rbt-red {
+    background-color: #dc3545;
+    color: white;
+  }
+  .node.rbt-black {
+    background-color: #212529;
+    color: white;
+  }
+  .node.delete-btn {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    background: #ff4d4d;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 20px;
+    user-select: none;
+  }
+  svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: visible;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<h1>Візуалізація дерев</h1>
+<div id="controls">
+  <select id="treeType">
+    <option value="binary">Звичайне дерево</option>
+    <option value="avl">AVL дерево</option>
+    <option value="rbt">Червоно-чорне дерево</option>
+  </select>
+  <input type="number" id="goldValue" placeholder="Кількість злитків" />
+  <button id="btnFind">Знайти/Додати</button>
+  <button id="btnDelete">Видалити</button>
+</div>
+
+<div id="output"></div>
+<div id="treeContainer"></div>
+
+<script>
+// Класи дерев залишаються без змін (для стислості тут не дублюю)
+// (Вставте сюди повні класи BinaryTree, AVLTree, RedBlackTree із вашого коду)
+
+
+// Звичайне бінарне дерево
+class BinaryNode {
+  constructor(value) {
+    this.value = value;
+    this.left = null;
+    this.right = null;
+  }
+}
+class BinaryTree {
+  constructor() {
+    this.root = null;
+  }
+  insert(value) {
+    this.root = this._insert(this.root, value);
+  }
+  _insert(node, value) {
+    if (!node) return new BinaryNode(value);
+    if (value < node.value) node.left = this._insert(node.left, value);
+    else if (value > node.value) node.right = this._insert(node.right, value);
+    return node;
+  }
+  search(value) {
+    let node = this.root;
+    let path = [];
+    while(node) {
+      path.push(node.value);
+      if (value === node.value) return path;
+      node = (value < node.value) ? node.left : node.right;
+    }
+    return null;
+  }
+  delete(value) {
+    alert("Видалення не підтримується у звичайному дереві");
+  }
+}
+// AVL
+class AVLNode {
+  constructor(value) {
+    this.value = value;
+    this.left = null;
+    this.right = null;
+    this.height = 1;
+  }
+}
+class AVLTree {
+  constructor() {
+    this.root = null;
+  }
+  height(node) {return node ? node.height : 0;}
+  updateHeight(node) {
+    node.height = 1 + Math.max(this.height(node.left), this.height(node.right));
+  }
+  getBalance(node) {
+    return node ? this.height(node.left) - this.height(node.right) : 0;
+  }
+  rotateRight(y) {
+    let x = y.left;
+    let T2 = x.right;
+    x.right = y;
+    y.left = T2;
+    this.updateHeight(y);
+    this.updateHeight(x);
+    return x;
+  }
+  rotateLeft(x) {
+    let y = x.right;
+    let T2 = y.left;
+    y.left = x;
+    x.right = T2;
+    this.updateHeight(x);
+    this.updateHeight(y);
+    return y;
+  }
+  insert(value) {
+    this.root = this._insert(this.root, value);
+  }
+  _insert(node, value) {
+    if (!node) return new AVLNode(value);
+    if (value < node.value) node.left = this._insert(node.left, value);
+    else if (value > node.value) node.right = this._insert(node.right, value);
+    else return node;
+    this.updateHeight(node);
+    let balance = this.getBalance(node);
+    if (balance > 1 && value < node.left.value) return this.rotateRight(node);
+    if (balance < -1 && value > node.right.value) return this.rotateLeft(node);
+    if (balance > 1 && value > node.left.value) {
+      node.left = this.rotateLeft(node.left);
+      return this.rotateRight(node);
+    }
+    if (balance < -1 && value < node.right.value) {
+      node.right = this.rotateRight(node.right);
+      return this.rotateLeft(node);
+    }
+    return node;
+  }
+  search(value) {
+    let node = this.root;
+    let path = [];
+    while(node) {
+      path.push(node.value);
+      if (value === node.value) return path;
+      node = (value < node.value) ? node.left : node.right;
+    }
+    return null;
+  }
+  delete(value) {
+    this.root = this._delete(this.root, value);
+  }
+  _delete(node, value) {
+    if (!node) return null;
+    if (value < node.value) {
+      node.left = this._delete(node.left, value);
+    } else if (value > node.value) {
+      node.right = this._delete(node.right, value);
+    } else {
+      if (!node.left) return node.right;
+      else if (!node.right) return node.left;
+      let minNode = node.right;
+      while(minNode.left) minNode = minNode.left;
+      node.value = minNode.value;
+      node.right = this._delete(node.right, minNode.value);
+    }
+    this.updateHeight(node);
+    let balance = this.getBalance(node);
+    if (balance > 1) {
+      if (this.getBalance(node.left) < 0) node.left = this.rotateLeft(node.left);
+      return this.rotateRight(node);
+    }
+    if (balance < -1) {
+      if (this.getBalance(node.right) > 0) node.right = this.rotateRight(node.right);
+      return this.rotateLeft(node);
+    }
+    return node;
+  }
+}
+// RBT
+const RED = true;
+const BLACK = false;
+class RBTNode {
+  constructor(value) {
+    this.value = value;
+    this.color = RED;
+    this.left = null;
+    this.right = null;
+    this.parent = null;
+  }
+}
+class RedBlackTree {
+  constructor() {
+    this.root = null;
+  }
+  isRed(node) {
+    return node != null && node.color === RED;
+  }
+  rotateLeft(h) {
+    let x = h.right;
+    h.right = x.left;
+    if (x.left) x.left.parent = h;
+    x.left = h;
+    x.color = h.color;
+    h.color = RED;
+    x.parent = h.parent;
+    h.parent = x;
+    return x;
+  }
+  rotateRight(h) {
+    let x = h.left;
+    h.left = x.right;
+    if (x.right) x.right.parent = h;
+    x.right = h;
+    x.color = h.color;
+    h.color = RED;
+    x.parent = h.parent;
+    h.parent = x;
+    return x;
+  }
+  flipColors(h) {
+    h.color = RED;
+    if (h.left) h.left.color = BLACK;
+    if (h.right) h.right.color = BLACK;
+  }
+  insert(value) {
+    this.root = this._insert(this.root, value);
+    this.root.color = BLACK;
+  }
+  _insert(h, value) {
+    if (!h) return new RBTNode(value);
+    if (value < h.value) {
+      h.left = this._insert(h.left, value);
+      h.left.parent = h;
+    } else if (value > h.value) {
+      h.right = this._insert(h.right, value);
+      h.right.parent = h;
+    } else {
+      // дублікат - нічого не робимо
+    }
+    if (this.isRed(h.right) && !this.isRed(h.left)) h = this.rotateLeft(h);
+    if (this.isRed(h.left) && this.isRed(h.left.left)) h = this.rotateRight(h);
+    if (this.isRed(h.left) && this.isRed(h.right)) this.flipColors(h);
+    return h;
+  }
+  search(value) {
+    let node = this.root;
+    let path = [];
+    while(node) {
+      path.push(node.value);
+      if (value === node.value) return path;
+      node = (value < node.value) ? node.left : node.right;
+    }
+    return null;
+  }
+  minimum(node) {
+    while(node.left) node = node.left;
+    return node;
+  }
+  delete(value) {
+    if (!this.search(value)) return;
+    if (!this.isRed(this.root.left) && !this.isRed(this.root.right)) this.root.color = RED;
+    this.root = this._delete(this.root, value);
+    if (this.root) this.root.color = BLACK;
+  }
+  moveRedLeft(h) {
+    this.flipColors(h);
+    if (this.isRed(h.right.left)) {
+      h.right = this.rotateRight(h.right);
+      h = this.rotateLeft(h);
+      this.flipColors(h);
+    }
+    return h;
+  }
+  moveRedRight(h) {
+    this.flipColors(h);
+    if (this.isRed(h.left.left)) {
+      h = this.rotateRight(h);
+      this.flipColors(h);
+    }
+    return h;
+  }
+  fixUp(h) {
+    if (this.isRed(h.right)) h = this.rotateLeft(h);
+    if (this.isRed(h.left) && this.isRed(h.left.left)) h = this.rotateRight(h);
+    if (this.isRed(h.left) && this.isRed(h.right)) this.flipColors(h);
+    return h;
+  }
+  _delete(h, value) {
+    if (value < h.value) {
+      if (!this.isRed(h.left) && !this.isRed(h.left?.left)) {
+        h = this.moveRedLeft(h);
+      }
+      h.left = this._delete(h.left, value);
+    } else {
+      if (this.isRed(h.left)) {
+        h = this.rotateRight(h);
+      }
+      if (value === h.value && !h.right) {
+        return null;
+      }
+      if (!this.isRed(h.right) && !this.isRed(h.right?.left)) {
+        h = this.moveRedRight(h);
+      }
+      if (value === h.value) {
+        let x = this.minimum(h.right);
+        h.value = x.value;
+        h.right = this._delete(h.right, x.value);
+      } else {
+        h.right = this._delete(h.right, value);
+      }
+    }
+    return this.fixUp(h);
+  }
+}
+
+// Глобальні змінні
+const binaryTree = new BinaryTree();
+const avlTree = new AVLTree();
+const rbtTree = new RedBlackTree();
+
+const output = document.getElementById("output");
+const treeContainer = document.getElementById("treeContainer");
+const btnFind = document.getElementById("btnFind");
+const btnDelete = document.getElementById("btnDelete");
+const goldValue = document.getElementById("goldValue");
+const treeTypeSelect = document.getElementById("treeType");
+
+function clearOutput() {
+  output.textContent = "";
+}
+
+function renderTree(tree, type) {
+  treeContainer.innerHTML = "";
+  if (!tree.root) return;
+  
+  // Отримаємо вузли по рівнях для горизонтальної візуалізації
+  let levels = [];
+  function traverse(node, depth) {
+    if (!node) return;
+    if (!levels[depth]) levels[depth] = [];
+    levels[depth].push(node);
+    traverse(node.left, depth+1);
+    traverse(node.right, depth+1);
+  }
+  traverse(tree.root, 0);
+  
+  // Контейнер для svg ліній
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.style.width = "100%";
+  svg.style.height = "300px";
+  treeContainer.appendChild(svg);
+  
+  // Для розміщення вузлів знаємо ширину контейнера
+  const containerWidth = treeContainer.clientWidth;
+  
+  // Для зберігання позицій вузлів, щоб малювати лінії
+  let nodePositions = new Map();
+
+  // Функція для створення DOM вузла
+  function createNodeDiv(node) {
+    const div = document.createElement("div");
+    div.classList.add("node");
+    if (type === "binary") div.classList.add("binary");
+    else if (type === "avl") div.classList.add("avl");
+    else if (type === "rbt") div.classList.add(node.color === RED ? "rbt-red" : "rbt-black");
+    div.textContent = node.value;
+    return div;
+  }
+  
+  // Малюємо рівні
+  levels.forEach((levelNodes, depth) => {
+    const levelDiv = document.createElement("div");
+    levelDiv.classList.add("tree-level");
+    treeContainer.appendChild(levelDiv);
+
+    // Ширина між вузлами
+    const gap = 30;
+    const totalNodes = levelNodes.length;
+    // Визначимо ширину всього рівня (примітивно)
+    const totalWidth = (totalNodes - 1) * gap + totalNodes * 40;
+    
+    // Відступ зліва (центрований)
+    const startX = (containerWidth - totalWidth) / 2;
+
+    levelNodes.forEach((node, index) => {
+      const nodeDiv = createNodeDiv(node);
+      levelDiv.appendChild(nodeDiv);
+      
+      // Позиція вузла в межах контейнера (відносно вікна)
+      // Отримаємо позицію після вставки в DOM
+      // Відкладемо встановлення позиції через requestAnimationFrame
+      // Але для простоти позиції рахуватимемо приблизно:
+      
+      // Обчислимо x як startX + index*(40+gap)
+      const x = startX + index * (40 + gap);
+      const y = depth * 80 + 20; // приблизно
+      
+      // Зберігаємо позицію центра вузла
+      nodePositions.set(node, {x: x + 20, y: y + 20});
+      
+      // Встановимо margin для візуального розміщення
+      nodeDiv.style.marginLeft = (index === 0 ? startX : gap) + "px";
+    });
+  });
+
+  // Трохи затримки, щоб отримати справжні позиції вузлів в DOM
+  setTimeout(() => {
+    // Оновимо позиції вузлів по DOM (центр вузла)
+    nodePositions.clear();
+    treeContainer.querySelectorAll(".node").forEach(nodeDiv => {
+      const rect = nodeDiv.getBoundingClientRect();
+      const parentRect = treeContainer.getBoundingClientRect();
+      const value = parseInt(nodeDiv.textContent);
+      let node = findNodeByValue(tree.root, value);
+      if (node) {
+        nodePositions.set(node, {
+          x: rect.left - parentRect.left + rect.width / 2,
+          y: rect.top - parentRect.top + rect.height / 2,
+        });
+      }
+    });
+
+    // Малюємо лінії між батьком і дітьми
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    nodePositions.forEach((pos, node) => {
+      if (node.left && nodePositions.has(node.left)) {
+        drawLine(svg, pos, nodePositions.get(node.left));
+      }
+      if (node.right && nodePositions.has(node.right)) {
+        drawLine(svg, pos, nodePositions.get(node.right));
+      }
+    });
+  }, 50);
+}
+
+function findNodeByValue(node, value) {
+  if (!node) return null;
+  if (node.value === value) return node;
+  return findNodeByValue(node.left, value) || findNodeByValue(node.right, value);
+}
+
+function drawLine(svg, start, end) {
+  const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+  line.setAttribute("x1", start.x);
+  line.setAttribute("y1", start.y);
+  line.setAttribute("x2", end.x);
+  line.setAttribute("y2", end.y);
+  line.setAttribute("stroke", "#555");
+  line.setAttribute("stroke-width", "2");
+  svg.appendChild(line);
+}
+
+btnFind.addEventListener("click", () => {
+  const val = parseInt(goldValue.value);
+  if (isNaN(val)) {
+    output.textContent = "Введіть правильне число!";
+    return;
+  }
+  const type = treeTypeSelect.value;
+  clearOutput();
+  if (type === "binary") {
+    binaryTree.insert(val);
+    const path = binaryTree.search(val);
+    output.textContent = path ? `Шлях до вузла: ${path.join(" → ")}` : "Не знайдено";
+    renderTree(binaryTree, "binary");
+  } else if (type === "avl") {
+    avlTree.insert(val);
+    const path = avlTree.search(val);
+    output.textContent = path ? `Шлях до вузла: ${path.join(" → ")}` : "Не знайдено";
+    renderTree(avlTree, "avl");
+  } else if (type === "rbt") {
+    rbtTree.insert(val);
+    const path = rbtTree.search(val);
+    output.textContent = path ? `Шлях до вузла: ${path.join(" → ")}` : "Не знайдено";
+    renderTree(rbtTree, "rbt");
+  }
+});
+
+btnDelete.addEventListener("click", () => {
+  const val = parseInt(goldValue.value);
+  if (isNaN(val)) {
+    output.textContent = "Введіть правильне число!";
+    return;
+  }
+  const type = treeTypeSelect.value;
+  clearOutput();
+  if (type === "avl") {
+    avlTree.delete(val);
+    output.textContent = `Видалено: ${val}`;
+    renderTree(avlTree, "avl");
+  } else if (type === "rbt") {
+    rbtTree.delete(val);
+    output.textContent = `Видалено: ${val}`;
+    renderTree(rbtTree, "rbt");
+  } else {
+    output.textContent = "Видалення підтримується лише у AVL та RBT деревах.";
+  }
+});
+
+// Початкова візуалізація порожнього дерева
+renderTree(binaryTree, "binary");
+</script>
+</body>
+</html>
